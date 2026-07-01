@@ -1,0 +1,338 @@
+# Academic Simulation – Smart Quality Ecosystem
+# Generates a structured Quality Analysis Report (HTML + CSS)
+# TCC / Dissertation / Scientific Appendix
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import io
+import base64
+import random
+from IPython.display import display, HTML
+
+
+# -----------------------------
+# COMPANY CONTEXT (SIMULATED)
+# -----------------------------
+COMPANY_PROFILE = {
+    "sector": "Manufacturing",
+    "market": "Industrial Equipment",
+    "niche": "Thermal Process Control"
+}
+
+
+# -----------------------------
+# ISO STANDARDS CONSULTATION (SIMULATED)
+# -----------------------------
+def simulate_iso_table(sector, niche):
+    iso_catalog = [
+        ("ISO 9001", "Quality Management Systems"),
+        ("ISO 14001", "Environmental Management"),
+        ("ISO 45001", "Occupational Health & Safety"),
+        ("ISO 31000", "Risk Management"),
+        ("ISO 50001", "Energy Management")
+    ]
+
+
+    relevance = {
+        "Manufacturing": ["ISO 9001", "ISO 14001", "ISO 45001", "ISO 31000", "ISO 50001"]
+    }
+
+
+    applicable = relevance.get(sector, ["ISO 9001"])
+
+
+    rows = []
+    for iso, title in iso_catalog:
+        if iso in applicable:
+            rows.append({
+                "ISO Standard": iso,
+                "Title": title,
+                "Relevance to Niche": niche
+            })
+
+
+    return pd.DataFrame(rows)
+
+
+# -----------------------------
+# AUDIT FINDINGS SIMULATION
+# -----------------------------
+def simulate_audit_findings(iso_table, cpk):
+    random.seed(42)
+    findings = []
+
+
+    for _, row in iso_table.iterrows():
+        if cpk is not None and cpk < 1:
+            finding = random.choice([
+                "Minor Nonconformity",
+                "Major Nonconformity",
+                "Opportunity for Improvement"
+            ])
+        else:
+            finding = random.choice([
+                "Conformity",
+                "Opportunity for Improvement"
+            ])
+
+
+        risk_map = {
+            "Conformity": "Low",
+            "Opportunity for Improvement": "Medium",
+            "Minor Nonconformity": "Medium",
+            "Major Nonconformity": "High"
+        }
+
+
+        findings.append({
+            "ISO Standard": row["ISO Standard"],
+            "Audit Finding": finding,
+            "Risk Level": risk_map[finding],
+            "Evidence Summary": (
+                "Process performance and SPC evidence reviewed against "
+                "simulated ISO requirements."
+            )
+        })
+
+
+    return pd.DataFrame(findings)
+
+
+# -----------------------------
+# PROCESS SIMULATION
+# -----------------------------
+def simulate_input_data(n=30):
+    return 20 + np.random.randn(n)
+
+
+def compute_stats(values, lsl, usl):
+    arr = np.array(values)
+    mean = arr.mean()
+    std = arr.std(ddof=1)
+
+
+    ucl = mean + 3 * std
+    lcl = mean - 3 * std
+
+
+    if std > 0:
+        cpk = min((usl - mean) / (3 * std),
+                  (mean - lsl) / (3 * std))
+    else:
+        cpk = None
+
+
+    return mean, std, ucl, lcl, cpk
+
+
+def generate_pda(trend, cpk):
+    prediction = f"Process trend classified as <strong>{trend}</strong>."
+
+
+    if cpk is not None and cpk < 1:
+        diagnosis = (
+            "Statistical capability is below recommended thresholds, "
+            "indicating elevated operational and compliance risk."
+        )
+        action = (
+            "Initiate corrective actions, perform root-cause analysis, "
+            "review control limits, and enhance monitoring frequency."
+        )
+    else:
+        diagnosis = (
+            "Process capability meets statistical expectations, "
+            "indicating a stable and controlled process."
+        )
+        action = (
+            "Maintain controls, document best practices, "
+            "and pursue continual improvement initiatives."
+        )
+
+
+    return prediction, diagnosis, action
+
+
+# -----------------------------
+# RUN ANALYSIS
+# -----------------------------
+N = 30
+LSL, USL = 18.0, 22.0
+
+
+data = simulate_input_data(N)
+mean, std, ucl, lcl, cpk = compute_stats(data, LSL, USL)
+cpk_display = f"{cpk:.2f}" if cpk is not None else "N/A"
+
+
+slope = np.polyfit(range(N), data, 1)[0]
+trend = "Rising" if slope > 0.05 else "Improving" if slope < -0.05 else "Stable"
+
+
+prediction, diagnosis, action = generate_pda(trend, cpk)
+
+
+iso_table = simulate_iso_table(
+    COMPANY_PROFILE["sector"],
+    COMPANY_PROFILE["niche"]
+)
+
+
+audit_findings = simulate_audit_findings(iso_table, cpk)
+
+
+# -----------------------------
+# CONTROL CHART
+# -----------------------------
+fig, ax = plt.subplots(figsize=(8, 3))
+ax.plot(data, marker="o")
+ax.axhline(mean, linestyle="--", label="Mean")
+ax.axhline(ucl, linestyle="--", color="black", label="UCL")
+ax.axhline(lcl, linestyle="--", color="black", label="LCL")
+ax.axhline(USL, linestyle=":", label="USL")
+ax.axhline(LSL, linestyle=":", label="LSL")
+ax.set_title("Statistical Process Control Chart")
+ax.legend(fontsize=8)
+
+
+buf = io.BytesIO()
+plt.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+plt.close()
+buf.seek(0)
+chart_b64 = base64.b64encode(buf.getvalue()).decode()
+
+
+# -----------------------------
+# HTML REPORT
+# -----------------------------
+html = f"""
+<style>
+body {{
+  font-family: Arial, sans-serif;
+  color: #000;
+  margin: 40px;
+  line-height: 1.6;
+}}
+
+
+.section {{
+  margin-bottom: 60px;
+}}
+
+
+h2 {{
+  border-bottom: 1px solid #000;
+  padding-bottom: 6px;
+  margin-bottom: 20px;
+}}
+
+
+table {{
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 15px;
+}}
+
+
+th, td {{
+  border: 1px solid #000;
+  padding: 10px;
+  text-align: left;
+}}
+
+
+.note {{
+  font-size: 0.9em;
+  color: #333;
+}}
+
+
+.pda-container {{
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  max-width: 520px;
+}}
+
+
+.pda-box {{
+  border: 2px solid #000;
+  padding: 22px;
+  min-height: 150px;
+}}
+
+
+.pda-title {{
+  font-weight: bold;
+  margin-bottom: 12px;
+}}
+</style>
+
+
+<h1>Quality Analysis Report</h1>
+
+
+<div class="section">
+<h2>1. Input Data</h2>
+<p>This section presents the data collected by the system for analysis.</p>
+<table>
+<tr><th>Parameter</th><th>Value</th></tr>
+<tr><td>Number of samples</td><td>{N}</td></tr>
+<tr><td>Mean temperature</td><td>{mean:.2f}</td></tr>
+<tr><td>Standard deviation</td><td>{std:.2f}</td></tr>
+<tr><td>Specification limits</td><td>LSL = {LSL} | USL = {USL}</td></tr>
+<tr><td>CPK</td><td>{cpk_display}</td></tr>
+</table>
+</div>
+
+
+<div class="section">
+<h2>2. Company Context</h2>
+<ul>
+<li><strong>Sector:</strong> {COMPANY_PROFILE["sector"]}</li>
+<li><strong>Market:</strong> {COMPANY_PROFILE["market"]}</li>
+<li><strong>Niche:</strong> {COMPANY_PROFILE["niche"]}</li>
+</ul>
+</div>
+
+
+<div class="section">
+<h2>3. Simulated ISO Standards Consulted</h2>
+{iso_table.to_html(index=False)}
+</div>
+
+
+<div class="section">
+<h2>4. Simulated Audit Findings</h2>
+{audit_findings.to_html(index=False)}
+</div>
+
+
+<div class="section">
+<h2>5. Statistical Control Visualization</h2>
+<img src="data:image/png;base64,{chart_b64}" style="width:100%;">
+</div>
+
+
+<div class="section">
+<h2>6. PDA – Prediction, Diagnosis, Action</h2>
+<div class="pda-container">
+  <div class="pda-box">
+    <div class="pda-title">Prediction</div>
+    {prediction}
+  </div>
+  <div class="pda-box">
+    <div class="pda-title">Diagnosis</div>
+    {diagnosis}
+  </div>
+  <div class="pda-box">
+    <div class="pda-title">Action</div>
+    {action}
+  </div>
+</div>
+</div>
+"""
+
+
+display(HTML(html))
